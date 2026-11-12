@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지구시스템 밸런서: 기후 방어 작전</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
+        body { background: #1a1a2e; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+        
+        .screen { position: absolute; width: 100%; max-width: 800px; height: 600px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #16213e; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 20px; text-align: center; z-index: 5; }
+        .hidden { display: none !important; }
+
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #4ecca3; }
+        p { font-size: 1.1rem; margin-bottom: 20px; color: #aaa; }
+        .btn-group { display: flex; gap: 15px; }
+        .btn { padding: 12px 25px; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; background: #4ecca3; color: #1a1a2e; }
+        .btn:hover { background: #45b393; transform: scale(1.05); }
+        .btn-sub { background: #0f3460; color: #fff; border: 2px solid #4ecca3; }
+        .btn-sub:hover { background: #1a4b8c; }
+
+        /* 관리자 키 버튼 스타일 (좌측 상단 배치) */
+        .master-key-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.05); border: 1px solid #555; color: #888; padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .master-key-btn:hover { border-color: #e94560; color: #e94560; background: rgba(233,69,96,0.1); }
+
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 20; }
+        .modal-content { background: #16213e; padding: 30px; border-radius: 10px; max-width: 600px; text-align: left; max-height: 80vh; overflow-y: auto; border: 2px solid #4ecca3; }
+        .modal-content h2 { color: #4ecca3; margin-bottom: 15px; text-align: center; }
+        .modal-content ul { margin-left: 20px; margin-bottom: 20px; line-height: 1.6; }
+        .modal-content li { margin-bottom: 8px; }
+
+        #game-container { position: relative; width: 800px; height: 600px; background: #0f3460; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+        #top-bar { display: flex; justify-content: space-between; padding: 15px 25px; background: rgba(0,0,0,0.4); font-size: 1.1rem; font-weight: bold; }
+        #canvas-area { position: relative; flex: 1; overflow: hidden; background: linear-gradient(to bottom, #1f4068, #1b1b2f); }
+        
+        .co2 { position: absolute; width: 32px; height: 32px; background: #e94560; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; box-shadow: 0 0 8px #e94560; }
+        .barrier { position: absolute; background: #f39c12; border-radius: 4px; box-shadow: 0 0 10px #f39c12; }
+
+        /* 하단 UI 영역 */
+        #ui-bottom { padding: 12px; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        
+        .deck-row { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+        .cards-container { display: flex; gap: 15px; justify-content: center; align-items: center; }
+        
+        .card { width: 120px; height: 80px; background: #1a1a2e; border: 2px solid #555; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.15s; padding: 5px; text-align: center; }
+        .card:hover { border-color: #4ecca3; }
+        .card.selected { border-color: #e94560; background: #2a2a4e; transform: translateY(-4px); box-shadow: 0 0 10px #e94560; }
+        .card-title { font-size: 0.85rem; font-weight: bold; color: #4ecca3; margin-bottom: 4px; }
+        .card-desc { font-size: 0.65rem; color: #ccc; }
+
+        .action-row { display: flex; gap: 15px; align-items: center; justify-content: center; width: 100%; }
+        .action-btn { padding: 8px 18px; font-size: 0.95rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; background: #4ecca3; color: #1a1a2e; transition: 0.2s; }
+        .action-btn:hover { background: #45b393; }
+        .action-btn.store { background: #f39c12; color: #fff; }
+        .action-btn.store:hover { background: #d35400; }
+
+        .storage-area { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; }
+        .storage-slot { width: 40px; height: 40px; border: 2px dashed #777; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: #aaa; background: rgba(0,0,0,0.3); text-align: center; padding: 2px; }
+        .storage-slot.filled { border-style: solid; border-color: #4ecca3; color: #4ecca3; font-weight: bold; font-size: 0.65rem; }
+
+        .overlay-msg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 25; text-align: center; padding: 20px; }
+        .overlay-msg h2 { font-size: 2.2rem; margin-bottom: 15px; color: #4ecca3; }
+        .overlay-msg p { font-size: 1.1rem; margin-bottom: 20px; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen">
+        <!-- 좌측 상단 관리자 키 버튼 -->
+        <button class="master-key-btn" onclick="openMasterKey()">관리자 키</button>
+
+        <h1>지구시스템 밸런서</h1>
+        <p>기후 위기로부터 지구를 지켜라!</p>
+        <div class="btn-group">
+            <button class="btn" onclick="startGame()">게임 시작</button>
+            <button class="btn btn-sub" onclick="openInfo()">정보 보기</button>
+        </div>
+    </div>
+
+    <div id="info-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🌍 게임 규칙 및 정보</h2>
+            <ul>
+                <li><b>게임 목표:</b> 지속적으로 하강하는 지구 온도를 15.0℃ 부근으로 유지하면서 떨어지는 CO₂를 막고 3개 웨이브를 클리어하세요!</li>
+                <li><b>웨이브 구성:</b> 
+                    <br>- W1: CO₂ 100개 / 속도 2.5 / 온도 감소율 초당 -0.01℃
+                    <br>- W2: CO₂ 150개 / 속도 3.0 / 온도 감소율 초당 -0.03℃
+                    <br>- W3: CO₂ 300개 / 속도 3.5 / 온도 감소율 초당 -0.05℃
+                </li>
+                <li><b>카드 등장 확률:</b> 광합성 50%, 바다 20%, 석회암 20%, 폭풍 10%</li>
+                <li><b>카드 효과 및 중첩:</b>
+                    <br>- 🌲 <b>숲의 광합성:</b> 지표에 가까운 CO₂ 우선 제거! 1개(2개) / 2개(6개) / 3개 이상(9개)
+                    <br>- 🌊 <b>바다의 흡수:</b> 1개(3초 둔화) / 2개(5초 둔화) / <b>3개 이상(5초간 CO₂ 완전 정지!)</b>
+                    <br>- 🧱 <b>석회암 방어벽:</b> 1~2개(작은 벽, 2개 차단) / 3개 이상(일자 가로 장벽, 10개 차단, 20초 유지)
+                    <br>- ⚡ <b>폭풍:</b> 화면 내 모든 CO₂ 즉시 소멸!
+                </li>
+                <li><b>승패 조건:</b> 
+                    <br>- CO₂ 낙하 시 온도가 <b>+0.5℃ 상승</b>합니다.
+                    <br>- 온도가 <b>10.0℃ 미만(빙하기)</b>으로 내려가거나 <b>20.0℃ 초과(온난화)</b>로 넘어가면 패배!
+                </li>
+            </ul>
+            <button class="btn" style="width: 100%;" onclick="closeInfo()">확인 완료</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <div id="top-bar">
+            <span id="wave-display">웨이브 1 / 3</span>
+            <span id="temp-display">지구 온도: 15.0℃</span>
+            <span id="co2-counter">남은 CO₂: 100</span>
+        </div>
+        
+        <div id="canvas-area"></div>
+
+        <div id="ui-bottom">
+            <div class="deck-row">
+                <div class="cards-container" id="hand-container"></div>
+                
+                <div class="action-row">
+                    <button class="action-btn" onclick="useSelectedCard()">사용하기</button>
+                    <button class="action-btn store" onclick="storeSelectedCard()">비축하기</button>
+                    <div class="storage-area" id="storage-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="end-overlay" class="overlay-msg hidden">
+        <h2 id="end-title">게임 오버</h2>
+        <p id="end-desc">지구 온도가 한계에 달했습니다.</p>
+        <button class="btn" onclick="restartGame()">다시 하기</button>
+    </div>
+
+    <script>
+        let currentWave = 1;
+        let temperature = 15.0;
+        let remainingCO2InWave = 100;
+        let totalCO2InWave = 100;
+        let spawnedCount = 0;
+        let gameActive = false;
+        let co2List = [];
+        let barrierList = [];
+        
+        let handCards = [];
+        let selectedCardIndex = null;
+        let storageSlots = [];
+        let maxStorage = 0;
+
+        let oceanConsecutiveCount = 0;
+        let otherCardsSinceOcean = 0;
+        let lastCardUseTime = 0;
+        const CARD_COOLDOWN = 500;
+
+        const waveData = {
+            1: { count: 100, storage: 0, spawnInterval: 900, speed: 2.5, tempDrop: 0.01 },
+            2: { count: 150, storage: 1, spawnInterval: 650, speed: 3.0, tempDrop: 0.03 },
+            3: { count: 300, storage: 2, spawnInterval: 400, speed: 3.5, tempDrop: 0.05 }
+        };
+
+        let spawnTimer = null;
+        let gameLoopInterval = null;
+
+        const cardData = {
+            forest: { name: '🌲 숲의 광합성', desc: 'CO₂ 제거' },
+            ocean: { name: '🌊 바다의 흡수', desc: '이동 둔화/정지' },
+            limestone: { name: '🧱 석회암 방어벽', desc: '장벽 설치' },
+            storm: { name: '⚡ 폭풍', desc: '화면 전체 소멸' }
+        };
+
+        function getRandomCardType() {
+            let rand = Math.random() * 100;
+            if (rand < 50) return 'forest';
+            else if (rand < 70) return 'ocean';
+            else if (rand < 90) return 'limestone';
+            else return 'storm';
+        }
+
+        function openInfo() { document.getElementById('info-modal').classList.remove('hidden'); }
+        function closeInfo() { document.getElementById('info-modal').classList.add('hidden'); }
+
+        // 관리자 키 기능 함수
+        function openMasterKey() {
+            let pw = prompt("관리자 비밀번호를 입력하세요:");
+            if (pw === "3333") {
+                let waveInput = prompt("시작할 웨이브를 입력하세요 (1, 2, 3 중 선택):");
+                let selectedWave = parseInt(waveInput);
+                if (selectedWave >= 1 && selectedWave <= 3) {
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('game-container').classList.remove('hidden');
+                    initWave(selectedWave);
+                } else if (waveInput !== null) {
+                    alert("1, 2, 3 중에서만 입력해주세요!");
+                }
+            } else if (pw !== null) {
+                alert("비밀번호가 틀렸습니다!");
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            initWave(1);
+        }
+
+        function initWave(waveNum) {
+            currentWave = waveNum;
+            maxStorage = waveData[waveNum].storage;
+            totalCO2InWave = waveData[waveNum].count;
+            remainingCO2InWave = totalCO2InWave;
+            spawnedCount = 0;
+            storageSlots = [];
+            selectedCardIndex = null;
+            
+            handCards = [getRandomCardType(), getRandomCardType(), getRandomCardType()];
+            updateUI();
+
+            document.getElementById('wave-display').innerText = `웨이브 ${currentWave} / 3`;
+            document.getElementById('co2-counter').innerText = `남은 CO₂: ${remainingCO2InWave}`;
+            
+            gameActive = true;
+            startSpawnAndLoop();
+        }
+
+        function startSpawnAndLoop() {
+            const data = waveData[currentWave];
+            
+            spawnTimer = setInterval(() => {
+                if (!gameActive) return;
+                if (spawnedCount < totalCO2InWave) {
+                    spawnCO2();
+                    spawnedCount++;
+                }
+            }, data.spawnInterval);
+
+            gameLoopInterval = setInterval(() => {
+                if (!gameActive) return;
+                
+                temperature -= data.tempDrop * 0.03;
+                updateTemp();
+                checkGameOver();
+
+                updateGameObjects();
+            }, 30);
+        }
+
+        function spawnCO2() {
+            const area = document.getElementById('canvas-area');
+            const elem = document.createElement('div');
+            elem.className = 'co2';
+            elem.innerText = 'CO₂';
+            
+            const maxX = area.clientWidth - 35;
+            const x = Math.random() * maxX;
+            const y = 0;
+            
+            elem.style.left = x + 'px';
+            elem.style.top = y + 'px';
+            area.appendChild(elem);
+
+            co2List.push({
+                elem: elem,
+                x: x,
+                y: y,
+                speed: waveData[currentWave].speed,
+                slowDuration: 0,
+                freezeDuration: 0
+            });
+        }
+
+        function updateGameObjects() {
+            const area = document.getElementById('canvas-area');
+            const maxHeight = area.clientHeight - 35;
+
+            for (let i = co2List.length - 1; i >= 0; i--) {
+                let co2 = co2List[i];
+                let currentSpeed = co2.speed;
+
+                if (co2.freezeDuration > 0) {
+                    currentSpeed = 0;
+                    co2.freezeDuration -= 0.03;
+                } else if (co2.slowDuration > 0) {
+                    currentSpeed *= 0.2;
+                    co2.slowDuration -= 0.03;
+                }
+
+                co2.y += currentSpeed;
+                co2.elem.style.top = co2.y + 'px';
+
+                let hitBarrier = false;
+                for (let j = barrierList.length - 1; j >= 0; j--) {
+                    let b = barrierList[j];
+                    if (co2.x >= b.x && co2.x <= b.x + b.width && co2.y >= b.y && co2.y <= b.y + 20) {
+                        hitBarrier = true;
+                        b.health--;
+                        if (b.health <= 0) {
+                            b.elem.remove();
+                            barrierList.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                if (hitBarrier) {
+                    co2.elem.remove();
+                    co2List.splice(i, 1);
+                    remainingCO2InWave--;
+                    checkWaveProgress();
+                    continue;
+                }
+
+                if (co2.y >= maxHeight) {
+                    co2.elem.remove();
+                    co2List.splice(i, 1);
+                    remainingCO2InWave--;
+                    temperature += 0.5;
+                    updateTemp();
+                    checkGameOver();
+                    checkWaveProgress();
+                }
+            }
+
+            for (let j = barrierList.length - 1; j >= 0; j--) {
+                let b = barrierList[j];
+                b.timeRemaining -= 0.03;
+                if (b.timeRemaining <= 0) {
+                    b.elem.remove();
+                    barrierList.splice(j, 1);
+                }
+            }
+
+            document.getElementById('co2-counter').innerText = `남은 CO₂: ${remainingCO2InWave}`;
+        }
+
+        function updateTemp() {
+            document.getElementById('temp-display').innerText = `지구 온도: ${temperature.toFixed(2)}℃`;
+        }
+
+        function checkGameOver() {
+            if (temperature > 20.0) {
+                endGame(false, "지구 온도가 20℃를 초과하여 극단적 온난화 재앙이 발생했습니다!");
+            } else if (temperature < 10.0) {
+                endGame(false, "지구 온도가 10℃ 미만으로 내려가 빙하기 재앙이 발생했습니다!");
+            }
+        }
+
+        function checkWaveProgress() {
+            if (remainingCO2InWave <= 0 && spawnedCount >= totalCO2InWave) {
+                clearInterval(spawnTimer);
+                clearInterval(gameLoopInterval);
+                gameActive = false;
+
+                co2List.forEach(c => c.elem.remove());
+                co2List = [];
+                barrierList.forEach(b => b.elem.remove());
+                barrierList = [];
+
+                if (currentWave < 3) {
+                    initWave(currentWave + 1);
+                } else {
+                    endGame(true, "축하합니다! 완벽하게 기후 밸런스를 유지하여 지구를 지켜냈습니다!");
+                }
+            }
+        }
+
+        function endGame(isWin, message) {
+            gameActive = false;
+            clearInterval(spawnTimer);
+            clearInterval(gameLoopInterval);
+
+            const overlay = document.getElementById('end-overlay');
+            document.getElementById('end-title').innerText = isWin ? "🎉 승리!" : "💀 게임 오버";
+            document.getElementById('end-desc').innerText = message;
+            overlay.classList.remove('hidden');
+        }
+
+        function restartGame() {
+            document.getElementById('end-overlay').classList.add('hidden');
+            temperature = 15.0;
+            updateTemp();
+            co2List.forEach(c => c.elem.remove());
+            co2List = [];
+            barrierList.forEach(b => b.elem.remove());
+            barrierList = [];
+            initWave(1);
+        }
+
+        function selectCard(index) {
+            if (!gameActive) return;
+            selectedCardIndex = index;
+            updateUI();
+        }
+
+        function useSelectedCard() {
+            if (!gameActive || selectedCardIndex === null) return;
+            
+            let now = Date.now();
+            if (now - lastCardUseTime < CARD_COOLDOWN) return;
+            lastCardUseTime = now;
+
+            let cardType = handCards[selectedCardIndex];
+
+            let storedMatchCount = storageSlots.filter(s => s === cardType).length;
+            storageSlots = storageSlots.filter(s => s !== cardType);
+
+            let totalCount = 1 + storedMatchCount;
+            otherCardsSinceOcean++;
+
+            if (cardType === 'forest') {
+                let removeNum = 2;
+                if (totalCount === 2) removeNum = 6;
+                else if (totalCount >= 3) removeNum = 9;
+                executeForest(removeNum);
+            } else if (cardType === 'ocean') {
+                let duration = 3;
+                let freeze = false;
+
+                if (totalCount === 2) {
+                    duration = 5;
+                } else if (totalCount >= 3) {
+                    freeze = true;
+                    duration = 5;
+                }
+
+                if (!freeze && otherCardsSinceOcean < 3 && oceanConsecutiveCount > 0) {
+                    duration *= 0.5;
+                }
+                oceanConsecutiveCount++;
+                otherCardsSinceOcean = 0;
+                executeOcean(duration, freeze);
+            } else if (cardType === 'limestone') {
+                let stack = (totalCount >= 3) ? 3 : 1;
+                executeLimestone(stack);
+            } else if (cardType === 'storm') {
+                executeStorm();
+            }
+
+            handCards[selectedCardIndex] = getRandomCardType();
+            selectedCardIndex = null;
+            updateUI();
+        }
+
+        function storeSelectedCard() {
+            if (!gameActive || selectedCardIndex === null) return;
+            
+            if (storageSlots.length >= maxStorage) {
+                alert("비축 슬롯이 가득 찼습니다!");
+                return;
+            }
+
+            let cardType = handCards[selectedCardIndex];
+            storageSlots.push(cardType);
+            handCards[selectedCardIndex] = getRandomCardType();
+            selectedCardIndex = null;
+            updateUI();
+        }
+
+        function executeForest(num) {
+            for (let i = 0; i < num; i++) {
+                if (co2List.length > 0) {
+                    co2List.sort((a, b) => b.y - a.y);
+                    let target = co2List.shift();
+                    target.elem.remove();
+                    remainingCO2InWave--;
+                }
+            }
+            checkWaveProgress();
+        }
+
+        function executeOcean(duration, isFreeze) {
+            co2List.forEach(c => { 
+                if (isFreeze) {
+                    c.freezeDuration = duration;
+                } else {
+                    c.slowDuration = duration; 
+                }
+            });
+        }
+
+        function executeLimestone(stackCount) {
+            const area = document.getElementById('canvas-area');
+            const elem = document.createElement('div');
+            elem.className = 'barrier';
+
+            let width = 120;
+            let health = 2;
+            let timeRem = 7;
+            let xPos = Math.random() * (area.clientWidth - width);
+            let yPos = 200 + Math.random() * 200;
+
+            if (stackCount >= 3) {
+                width = area.clientWidth - 40;
+                xPos = 20;
+                health = 10;
+                timeRem = 20;
+            }
+
+            elem.style.width = width + 'px';
+            elem.style.height = '15px';
+            elem.style.left = xPos + 'px';
+            elem.style.top = yPos + 'px';
+            area.appendChild(elem);
+
+            barrierList.push({
+                elem: elem, x: xPos, y: yPos, width: width, health: health, timeRemaining: timeRem
+            });
+        }
+
+        function executeStorm() {
+            co2List.forEach(c => c.elem.remove());
+            remainingCO2InWave -= co2List.length;
+            co2List = [];
+            checkWaveProgress();
+        }
+
+        function updateUI() {
+            const handContainer = document.getElementById('hand-container');
+            handContainer.innerHTML = '';
+
+            handCards.forEach((cardType, index) => {
+                let info = cardData[cardType];
+                let cardElem = document.createElement('div');
+                cardElem.className = 'card' + (selectedCardIndex === index ? ' selected' : '');
+                cardElem.innerHTML = `<div class="card-title">${info.name}</div><div class="card-desc">${info.desc}</div>`;
+                
+                cardElem.onclick = () => selectCard(index);
+                handContainer.appendChild(cardElem);
+            });
+
+            const storageContainer = document.getElementById('storage-container');
+            storageContainer.innerHTML = `<span style="font-size:0.75rem; color:#aaa; margin-right:4px;">비축(${maxStorage}):</span>`;
+            for (let i = 0; i < maxStorage; i++) {
+                let slot = document.createElement('div');
+                let storedType = storageSlots[i];
+                slot.className = 'storage-slot' + (storedType ? ' filled' : '');
+                slot.innerText = storedType ? cardData[storedType].name.split(' ')[1] : '빈칸';
+                storageContainer.appendChild(slot);
+            }
+        }
+    </script>
+</body>
+</html>
